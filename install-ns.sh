@@ -329,10 +329,21 @@ fi
 echo "------------------------ Downloading sources ----------------------------"
 set -o errexit
 
-if [ ! -f tcl${version_tcl}-src.tar.gz ] ; then
-    echo wget http://heanet.dl.sourceforge.net/sourceforge/tcl/tcl${version_tcl}-src.tar.gz
-    wget http://heanet.dl.sourceforge.net/sourceforge/tcl/tcl${version_tcl}-src.tar.gz
+if echo ${version_tcl} | grep '^fossil_' >/dev/null; then
+    fossiltag=$(echo ${version_tcl} | sed 's/^fossil_//g;s/_tk=.*$//g')
+    tarball_tcl="tcl${fossiltag}-src.tar.gz"
+    if [ ! -f ${tarball_tcl} ] ; then
+	wget -O ${tarball_tcl} "http://core.tcl.tk/tcl/tarball/tcl-fossil.tar.gz?uuid=${fossiltag}"
+    fi
+else
+    tarball_tcl="tcl${version_tcl}-src.tar.gz"
+    if [ ! -f ${tarball_tcl} ] ; then
+	echo wget http://heanet.dl.sourceforge.net/sourceforge/tcl/tcl${version_tcl}-src.tar.gz
+	wget http://heanet.dl.sourceforge.net/sourceforge/tcl/tcl${version_tcl}-src.tar.gz
+    fi
 fi
+
+
 if [ ! -f ${tcllib_dirname}-${version_tcllib}.tar.bz2 ] ; then
     wget http://heanet.dl.sourceforge.net/sourceforge/tcllib/${tcllib_dirname}-${version_tcllib}.tar.bz2
 fi
@@ -391,13 +402,36 @@ else
 fi
 
 cd ${build_dir}
-if [ ! -f thread${version_thread}.tar.gz ] ; then
-    wget http://heanet.dl.sourceforge.net/sourceforge/tcl/thread${version_thread}.tar.gz
+
+if echo ${version_thread} | grep '^fossil_' >/dev/null; then
+    fossiltag=$(echo ${version_thread} | sed 's/^fossil_//g;s/_tk=.*$//g')
+    tarball_thread="thread$(echo ${fossiltag} | sed 's/^thread-//g;s/_tk=.*$//g').tar.gz"
+    if [ ! -f ${tarball_thread} ] ; then
+	wget -O ${tarball_thread} "http://core.tcl.tk/thread/tarball/thread-fossil.tar.gz?uuid=${fossiltag}"
+	wget -O tclconfig-trunk.tar.gz "http://core.tcl.tk/tclconfig/tarball/tclconfig-fossil.tar.gz?uuid=trunk"
+    fi
+    if [ ! -f tclconfig-trunk.tar.gz ] ; then
+	wget -O tclconfig-trunk.tar.gz "http://core.tcl.tk/tclconfig/tarball/tclconfig-fossil.tar.gz?uuid=trunk"
+    fi
+else
+    tarball_thread="thread${version_thread}.tar.gz"
+    if [ ! -f ${tarball_thread} ] ; then
+	wget http://heanet.dl.sourceforge.net/sourceforge/tcl/thread${version_thread}.tar.gz
+    fi
 fi
 
 if [ ! ${version_xotcl} = "HEAD" ] ; then
-    if [ ! -f nsf${version_xotcl}.tar.gz ] ; then
-	wget http://heanet.dl.sourceforge.net/sourceforge/next-scripting/nsf${version_xotcl}.tar.gz
+    if echo ${version_thread} | grep '^fossil_' >/dev/null; then
+	fecrutag=$(echo ${version_xotcl} | sed 's/^fisheye_//g;s/_tk=.*$//g')
+	tarball_nsf="nsf${fecrutag}.zip"
+	if [ ! -f ${tarball_nsf} ] ; then
+	    wget -O ${tarball_nsf} "http://fisheye.openacs.org/browse/~tarball=zip,br=${fecrutag}/nsf/nsf.zip"
+	fi
+    else
+	tarball_nsf="nsf${version_xotcl}.tar.gz"
+	if [ ! -f ${tarball_nsf} ] ; then
+	    wget http://heanet.dl.sourceforge.net/sourceforge/next-scripting/nsf${version_xotcl}.tar.gz
+	fi
     fi
 else
     if [ ! -d nsf ] ; then
@@ -448,8 +482,13 @@ fi
 echo "------------------------ Installing TCL ---------------------------------"
 set -o errexit
 
-tar xfz tcl${version_tcl}-src.tar.gz
-cd tcl${version_tcl}/unix
+tar xfz ${tarball_tcl}
+if [ -z ${fossiltag+x} ]; then
+    cd tcl${version_tcl}/unix
+else
+    cd tcl-fossil/unix
+fi
+
 ./configure --enable-threads --prefix=${ns_install_dir}
 ${make}
 ${make} install
@@ -478,13 +517,13 @@ cd ${build_dir}
 if [ ! ${version_ns} = "HEAD" ] ; then
     tar zxvf naviserver-${version_ns}.tar.gz
     cd naviserver-${version_ns}
-    ./configure --with-tcl=${ns_install_dir}/lib --prefix=${ns_install_dir}
+    ./configure --with-tcl=${ns_install_dir}/lib --prefix=${ns_install_dir} --with-openssl
 else
     cd naviserver
     if [ ! -f naviserver/configure ] ; then
-	bash autogen.sh --with-tcl=${ns_install_dir}/lib --prefix=${ns_install_dir}
+	bash autogen.sh --with-tcl=${ns_install_dir}/lib --prefix=${ns_install_dir} --with-openssl
     else
-	./configure --with-tcl=${ns_install_dir}/lib --prefix=${ns_install_dir}
+	./configure --with-tcl=${ns_install_dir}/lib --prefix=${ns_install_dir} --with-openssl
     fi
 fi
 ${make}
@@ -508,8 +547,17 @@ cd ../..
 
 echo "------------------------ Installing Thread ------------------------------"
 
-tar xfz thread${version_thread}.tar.gz
-cd thread${version_thread}/unix/
+tar xfz ${tarball_thread}
+
+if [ -z ${fossiltag+x} ]; then
+    cd thread${version_thread}/unix/
+else
+ 
+    tar -xzf tclconfig-trunk.tar.gz
+    cp -r "tclconfig-fossil" thread-fossil/tclconfig
+    cd thread-fossil/unix/
+fi
+
 ../configure --enable-threads --prefix=${ns_install_dir} --exec-prefix=${ns_install_dir} --with-naviserver=${ns_install_dir} --with-tcl=${ns_install_dir}/lib
 make
 ${make} install
@@ -534,8 +582,14 @@ fi
 echo "------------------------ Installing XOTcl 2.0 ----------------------------"
 
 if [ ! ${version_xotcl} = "HEAD" ] ; then
-    tar xvfz nsf${version_xotcl}.tar.gz
-    cd nsf${version_xotcl}
+    if [ -z ${fecrutag+x} ]; then
+	tar xvfz ${tarball_nsf}
+	cd nsf${version_xotcl}
+    else
+	unzip ${tarball_nsf} -d nsf
+	cd nsf
+	chmod u+x configure
+    fi
 else
     cd nsf
 fi

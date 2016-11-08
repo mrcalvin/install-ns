@@ -22,22 +22,25 @@ done
 echo "------------------------ Settings ---------------------------------------"
 # Installation directory and software versions to be installed
 
-build_dir=/usr/local/src
+build_dir=/usr/local/src/ns
 #build_dir=/usr/local/src/oo2
-ns_install_dir=/usr/local/ns
+ns_install_dir=/usr/local/ns-test
 #ns_install_dir=/usr/local/oo2
-version_ns=4.99.12
+version_ns=4.99.13
 #version_ns=HEAD
-version_modules=4.99.12
+version_modules=4.99.13
 #version_modules=HEAD
-version_tcl=8.5.19
+#version_tcl=8.5.19
+version_tcl=fossil_core-8-6-branch
 version_tcllib=1.18
 tcllib_dirname=tcllib
-version_thread=2.7.3
+# version_thread=2.7.3
+version_thread=fossil_thread-2-8-0
 version_xotcl=2.0.0
+version_xotcl=fisheye_2-1-0-rc
 #version_xotcl=HEAD
 version_tdom=GIT
-ns_user=nsadmin
+ns_user=_nsadmin
 ns_group=nsadmin
 with_mongo=0
 with_postgres=1

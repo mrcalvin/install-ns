@@ -67,11 +67,23 @@ pg_packages=
 uname=$(uname)
 if [ $uname = "Darwin" ] ; then
     macosx=1
+    
     group_listcmd="dscl . list /Groups | grep ${ns_group}"
     group_addcmd="dscl . create /Groups/${ns_group} PrimaryGroupID $((`dscl . -list /Groups PrimaryGroupID | awk '{print $2}' | sort -rn|head -1` + 1))"
-    ns_user_addcmd="dscl . create /Users/${ns_user};dseditgroup -o edit -a ${ns_user} -t user ${ns_group}"
-    ns_user_addgroup_hint="dseditgroup -o edit -a YOUR_USERID -t user ${ns_group}"
 
+    osxversion=$(sw_vers -productVersion | awk -F '.' '{print $2}')
+
+    maxid=$(dscl . -list /Users UniqueID | awk '{print $2}' | sort -ug | tail -1)
+    newid=$((maxid+1))
+    
+    if [ ${osxversion} -ge 10 ]; then
+	ns_user_addcmd="sysadminctl -addUser ${ns_user} -UID ${newid}; dseditgroup -o edit -a ${ns_user} -t user ${ns_group}"
+    else
+	ns_user_addcmd="dscl . create /Users/${ns_user}; dscl . -create /Users/${ns_user} UniqueID ${newid}; dseditgroup -o edit -a ${ns_user} -t user ${ns_group}"
+    fi
+
+    ns_user_addgroup_hint="dseditgroup -o edit -a YOUR_USERID -t user ${ns_group}"
+    
     if [ $with_postgres = "1" ] ; then
 	# Preconfigured for PostgreSQL 9.4 installed via mac ports
 	pg_incl=/opt/local/include/postgresql94/
